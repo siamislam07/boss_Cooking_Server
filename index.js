@@ -32,20 +32,43 @@ async function run() {
         const menuCollection = client.db('bistroDb').collection('menu')
         const ReviewCollection = client.db('bistroDb').collection('reviews')
         const cartCollection = client.db('bistroDb').collection('carts')
+        // jwt related api
+        app.post('/jwt', async(req, res) => {
+            const user = req.body
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: '1h'})
+            res.send({ token })
+        })
+        // middlewares
+        const verifyToken = (req, res, next) => {
+            console.log('inside verify token', req.headers.authorization);
+            if(!req.headers.authorization) {
+                return res.status(401).send({ message: 'forbidden' })
+            }
+            const token = req.headers.authorization.split(' ')[1]
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
+                if (err) {
+                    return res.status(401).send({message:'forbidden access'})
+                }
+                req.decoded = decoded;
+                next()
+            })
+        }
 
         //users related api
-        app.get('/users', async(req, res)=>{
+        app.get('/users',verifyToken, async (req, res) => {
+            console.log(req.headers);
             const result = await userCollection.find().toArray()
             res.send(result)
         })
-        app.post('/users', async(req, res)=>{
+        app.post('/users', async (req, res) => {
             const user = req.body
             // insert email if user does not exists
             // you can do this many way(1.email unique, 2. upsert, 3. simple checking)
-            const query = {email: user.email}
+            const query = { email: user.email }
             const existingUser = await userCollection.findOne(query)
             if (existingUser) {
-                return res.send({message: 'user already exists', insertedId: null})
+                return res.send({ message: 'user already exists', insertedId: null })
             }
 
             const result = await userCollection.insertOne(user)
@@ -53,11 +76,11 @@ async function run() {
         })
         //user related api ends
 
-        app.patch('/users/admin/:id', async(req, res)=>{
+        app.patch('/users/admin/:id', async (req, res) => {
             const id = req.params.id
-            const filter = {_id: new ObjectId(id)}
-            const updatedDoc={
-                $set:{
+            const filter = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
                     role: 'admin'
                 }
             }
@@ -65,41 +88,41 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/users/:id', async(req, res) =>{
+        app.delete('/users/:id', async (req, res) => {
             const id = req.params.id
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await userCollection.deleteOne(query)
             res.send(result)
         })
 
         // menu related apis
-        app.get('/menu', async(req, res)=>{
+        app.get('/menu', async (req, res) => {
             const result = await menuCollection.find().toArray()
             res.send(result)
         })
 
-        app.get('/reviews', async(req, res)=>{
+        app.get('/reviews', async (req, res) => {
             const result = await ReviewCollection.find().toArray()
             res.send(result)
         })
 
         //carts collection
-        app.get('/carts', async(req, res)=>{
+        app.get('/carts', async (req, res) => {
             const email = req.query.email
-            const query = {email: email}
+            const query = { email: email }
             const result = await cartCollection.find(query).toArray()
             res.send(result)
         })
 
-        app.post('/carts', async(req, res)=>{
+        app.post('/carts', async (req, res) => {
             const cartItem = req.body
             const result = await cartCollection.insertOne(cartItem)
             res.send(result)
         })
 
-        app.delete('/carts/:id', async(req, res)=>{
+        app.delete('/carts/:id', async (req, res) => {
             const id = req.params.id
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await cartCollection.deleteOne(query)
             res.send(result)
         })
