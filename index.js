@@ -213,18 +213,29 @@ async function run() {
             })
         })
 
-        app.post('/payments',async(req,res)=>{
-            const payment= req.body
+        app.get('/payments/:email', verifyToken, async (req, res) => {
+            const query = {email: req.params.email}
+            if (req.params.email !== req.decoded.email) {
+                return res.send(403).send({message: 'forbidden access'})
+            }
+            const result = await paymentCollection.find(query).toArray()
+            res.send(result)
+        })
+
+        app.post('/payments', async (req, res) => {
+            const payment = req.body
             const paymentResult = await paymentCollection.insertOne(payment)
 
             //  delete  each item from  the cart
             console.log('paymentinfo', payment);
-            const query  ={_id: {
-                $in:payment.cartIds.map(id=> new ObjectId(id))
-            }};
+            const query = {
+                _id: {
+                    $in: payment.cartIds.map(id => new ObjectId(id))
+                }
+            };
 
-            const deleteResult =  await cartCollection.deleteMany(query)
-            res.send({paymentResult, deleteResult})
+            const deleteResult = await cartCollection.deleteMany(query)
+            res.send({ paymentResult, deleteResult })
 
         })
 
